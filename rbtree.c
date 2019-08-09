@@ -132,14 +132,20 @@ void rb_print(struct rb_root *root, void (*prt)(const void *d))
 
 void __inorder(struct rb_node *t, void (*prt)(const void *d), int x, int y, int dep)
 {
-	if (!t)
+	if (!t) {
+		printf("None");
 		return;
+	}
 
-	__inorder(t->l, prt, x - ((0x01 << (MAX_H-dep)) - (0x01 << (MAX_H - dep - 1))), y - 1, dep+1);
 
+	//printf("[%d,%d](%c)", x, y, t->color == RB_RED ? 'R' : 'B');
+	printf("{\"key\":");
 	prt(t->data);
-	printf("[%d,%d](%c)", x, y, t->color == RB_RED ? 'R' : 'B');
+	printf(",\"color\":%d, \"left\":", !t->color);
+	__inorder(t->l, prt, x - ((0x01 << (MAX_H-dep)) - (0x01 << (MAX_H - dep - 1))), y - 1, dep+1);
+	printf(",\"right\":");
 	__inorder(t->r, prt, x+ ((0x01 << (MAX_H-dep)) - (0x01 << (MAX_H - dep - 1))), y-1, dep+1);
+	printf("}");
 }
 
 int cmp_int(const void *in, const void *d)
@@ -156,21 +162,22 @@ int main(void)
 {
 	struct rb_root T = RB_ROOT;
 
-	rb_insert(&T, cmp_int, (void *)5);
-	rb_print(&T, prt_f);
-	rb_insert(&T, cmp_int, (void *)6);
-	rb_print(&T, prt_f);
-	rb_insert(&T, cmp_int, (void *)7);
-	rb_print(&T, prt_f);
-	rb_insert(&T, cmp_int, (void *)15);
-	rb_print(&T, prt_f);
-	rb_insert(&T, cmp_int, (void *)3);
-	rb_print(&T, prt_f);
-	rb_insert(&T, cmp_int, (void *)13);
-	rb_insert(&T, cmp_int, (void *)14);
-	rb_insert(&T, cmp_int, (void *)18);
-	rb_insert(&T, cmp_int, (void *)19);
-	rb_insert(&T, cmp_int, (void *)10);
+	//rb_insert(&T, cmp_int, (void *)5);
+	int i;
+#define __MAX_RAND_LEN		4096
+	int n[__MAX_RAND_LEN] = {};
+	for (i = 1; i < __MAX_RAND_LEN; i++)
+		n[i] = i;
+	srand(time());
+	for (i = 1; i < __MAX_RAND_LEN; i++) {
+		int x = rand() % __MAX_RAND_LEN;
+		int t = n[i];
+		n[i] = n[x];
+		n[x] = t;
+	}
+	for (i = 1; i < 512; i++)
+		rb_insert(&T, cmp_int, (void *)(i[n]));
+		//rb_insert(&T, cmp_int, (void *)i);
 	rb_print(&T, prt_f);
 
 	return 0;
