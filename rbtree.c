@@ -1,8 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+//
+#include <time.h>
+
 #include "rbtree.h"
 
+static struct rb_node *__new_node(const void *data);
+static int __is_red(struct rb_node *n);
+static struct rb_node *__rotate_left(struct rb_node *h);
+static struct rb_node *__rotate_right(struct rb_node *h);
+static void __filp_color(struct rb_node *h);
+static struct rb_node *__move_red_left(struct rb_node *this);
+static struct rb_node *__move_red_right(struct rb_node *this);
+static struct rb_node *__delete(struct rb_node *this, int (*cmp_func)(const void *in, const void *data), const void *data);
+static struct rb_node *__fixup(struct rb_node *this);
+static struct rb_node *__del_min(struct rb_node *this);
 //struct rb_root *rb_init(void)
 //{
 //	return NULL;
@@ -120,6 +133,126 @@ struct rb_node *__insert(struct rb_node *this,// struct rb_node *node,
 	return this;
 }
 
+/* ==== for Delete ===== */
+
+struct rb_node *__move_red_left(struct rb_node *this)
+{
+	__filp_color(this);
+
+	if (__is_red(this->r->l)) {
+		this->r = __rotate_right(this->r);
+		this = __rotate_left(this);
+		__filp_color(this);
+	}
+
+	return this;
+}
+
+struct rb_node *__move_red_right(struct rb_node *this)
+{
+	__filp_color(this);
+
+	if (__is_red(this->l->l)) {
+		this = __rotate_right(this);
+		__filp_color(this);
+	}
+
+	return this;
+}
+
+const void *__get_min(struct rb_node *h)
+{
+	struct rb_node *p = h->l;
+
+	while (p) {
+		h = p;
+		p = h->l;
+	}
+
+	return h->data;
+}
+
+struct rb_root *rb_delete(struct rb_root *root,
+		int (*cmp_func)(const void *in, const void *data), const void *data)
+{
+	root->root = __delete(root->root, cmp_func, data);
+	root->root->color = RB_BLACK;
+
+	return root;
+}
+
+struct rb_node *__delete(struct rb_node *this,
+		int (*cmp_func)(const void *in, const void *data), const void *data)
+{
+	int r;
+
+	r = cmp_func(this->data, data);
+
+	if (r < 0) {
+		if (!__is_red(this->l) && !__is_red(this->l->l))
+			this = __move_red_left(this);
+		this->l = __delete(this->l, cmp_func, data);
+	} else {
+		if (__is_red(this->l))
+			this = __rotate_right(this);
+		if (cmp_func(this->data, data) == 0 && (NULL == this->r))
+			return NULL;
+		if (!__is_red(this->r) && !__is_red(this->r->l))
+			this = __move_red_right(this);	/* TODO return the node that we find */
+		if (0 == cmp_func(this->data, data)) {
+			/* move the minimum node after this, then del the old */
+			/* TODO return the node that we find */
+			this->data = __get_min(this->r);	/* this node already be removed */
+			this->r = __del_min(this->r);
+		} else {
+			this->r = __delete(this->r, cmp_func, data);
+		}
+	}
+
+	return __fixup(this);
+}
+
+struct rb_node *__fixup(struct rb_node *this)
+{
+	/* two steps to fix the new node */
+	/* 1. rotate left if get the right-leaning 3-node */
+	if (!__is_red(this->l) && __is_red(this->r))
+		this = __rotate_left(this);
+
+	/* 2. rotate right if get two red nodes */
+	/* do not need to judge if left is exsit */
+	if (__is_red(this->l) && __is_red(this->l->l))
+		this = __rotate_right(this);
+
+	/* split the 4-node */
+	if (__is_red(this->l) && __is_red(this->r))
+		__filp_color(this);
+
+	return this;
+}
+
+//struct rb_node *_del_min(struct rb_node *root)
+//{
+//	/* TODO return the node that we find */
+//	this = __del_min(this);
+//	this->color = RB_BLACK;
+//}
+
+struct rb_node *__del_min(struct rb_node *this)
+{
+	if (!this->l)
+		return NULL;
+
+	if (!__is_red(this->l) && !__is_red(this->l->l))
+		this = __move_red_left(this);
+
+	this->l = __del_min(this->l);
+
+	return __fixup(this);
+}
+
+/* ==== Delete end ===== */
+
 void __inorder(struct rb_node *t, void (*prt)(const void *d), int x, int y, int dep);
 
 #define MAX_H 4
@@ -168,16 +301,20 @@ int main(void)
 	int n[__MAX_RAND_LEN] = {};
 	for (i = 1; i < __MAX_RAND_LEN; i++)
 		n[i] = i;
-	srand(time());
+	srand(time(NULL));
 	for (i = 1; i < __MAX_RAND_LEN; i++) {
 		int x = rand() % __MAX_RAND_LEN;
 		int t = n[i];
 		n[i] = n[x];
 		n[x] = t;
 	}
-	for (i = 1; i < 512; i++)
+	for (i = 1; i < 12; i++)
 		rb_insert(&T, cmp_int, (void *)(i[n]));
 		//rb_insert(&T, cmp_int, (void *)i);
+	rb_print(&T, prt_f);
+
+	fprintf(stderr, "del [%d]\n", n[1]);
+	rb_delete(&T, cmp_int, (void *)(n[1]));
 	rb_print(&T, prt_f);
 
 	return 0;
